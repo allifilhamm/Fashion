@@ -3,6 +3,16 @@ import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
 from io import BytesIO
+import numpy as np  
+from surprise import Reader, Dataset, accuracy  
+from surprise.model_selection import train_test_split  
+from sklearn.metrics import (
+    precision_score, 
+    recall_score, 
+    f1_score, 
+    mean_squared_error, 
+    mean_absolute_error
+)
 
 
 st.set_page_config(
