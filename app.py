@@ -165,20 +165,11 @@ def get_top_n_recommendations_knn(
     df,
     n=10
 ):
-    """
-    Rekomendasi dengan sklearn NearestNeighbors (user-based).
-    Langkah:
-    1. Cari K user paling mirip dengan user_id
-    2. Ambil produk yang disukai user-user tetangga
-    3. Filter produk yang belum pernah dilihat user_id
-    4. Urutkan berdasarkan rata-rata rating tetangga
-    """
-
     matrix = build_user_item_matrix(df)
 
     if hasattr(model, 'feature_names_in_'):
         matrix = matrix.reindex(columns=model.feature_names_in_, fill_value=0)
-   
+    
     if user_id not in matrix.index:
         return pd.DataFrame(
             columns=[
@@ -207,7 +198,7 @@ def get_top_n_recommendations_knn(
     for neighbor_idx, distance in zip(neighbor_indices, neighbor_distances):
 
         neighbor_user_id = matrix.index[neighbor_idx]
-        similarity = 1 / (1 + distance)  # Ubah distance → similarity
+        similarity = 1 / (1 + distance)
 
         neighbor_ratings = df[
             df["User_ID"] == neighbor_user_id
@@ -267,215 +258,9 @@ def get_top_n_recommendations_knn(
         ["Clothing_ID", "Class Name", "Department Name", "Predicted_Rating"]
     ]
 
-if menu == "Dashboard":
-
-    st.title("📊 Dashboard Admin")
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric(
-        "Total User",
-        df["User_ID"].nunique()
-    )
-
-    col2.metric(
-        "Total Produk",
-        df["Clothing ID"].nunique()
-    )
-
-    col3.metric(
-        "Total Interaksi",
-        len(df)
-    )
-
-    st.divider()
-
-    left, right = st.columns(2)
-
-    with left:
-
-        st.subheader("Distribusi Rating")
-
-        fig, ax = plt.subplots()
-
-        df["Rating"].value_counts().sort_index().plot(
-            kind="bar",
-            ax=ax
-        )
-
-        plt.xlabel("Rating")
-        plt.ylabel("Jumlah")
-
-        st.pyplot(fig)
-
-    with right:
-
-        st.subheader("Top Kategori Produk")
-
-        fig2, ax2 = plt.subplots()
-
-        df["Class Name"].value_counts().head(10).plot(
-            kind="bar",
-            ax=ax2
-        )
-
-        st.pyplot(fig2)
-
-elif menu == "Katalog Produk":
-
-    st.title("🛍️ Katalog Produk")
-
-    produk = df[
-        [
-            "Clothing ID",
-            "Class Name",
-            "Department Name"
-        ]
-    ].drop_duplicates()
-
-    search = st.text_input(
-        "Cari Produk"
-    )
-
-    if search:
-
-        produk = produk[
-            produk["Class Name"]
-            .astype(str)
-            .str.contains(
-                search,
-                case=False,
-                na=False
-            )
-        ]
-
-    st.dataframe(
-        produk,
-        use_container_width=True
-    )
-
-
-elif menu == "Histori User":
-
-    st.title("👤 Histori User")
-
-    user_id = st.number_input(
-        "Masukkan User ID",
-        min_value=1,
-        value=1,
-        step=1
-    )
-
-    user_id = int(user_id)
-
-    history = df[
-        df["User_ID"] == user_id
-    ]
-
-    st.write(
-        f"Jumlah Interaksi: {len(history)}"
-    )
-
-    st.dataframe(
-        history[
-            [
-                "Clothing ID",
-                "Class Name",
-                "Rating"
-            ]
-        ],
-        use_container_width=True
-    )
-
-elif menu == "Rekomendasi Produk":
-
-    st.title("🎯 Sistem Rekomendasi Produk")
-
-    user_id = st.number_input(
-        "Masukkan User ID",
-        min_value=1,
-        value=1,
-        step=1
-    )
-
-    user_id = int(user_id)
-
-    model_choice = st.selectbox(
-        "Pilih Model",
-        [
-            "SVD",
-            "Collaborative Filtering",
-            "KNN"
-        ]
-    )
-
-    if model_choice == "SVD":
-        selected_model = svd_model
-        use_knn = False
-    elif model_choice == "KNN":
-        selected_model = knn_model
-        use_knn = True
-    else:
-        selected_model = cf_model
-        use_knn = False
-
-    if st.button("Generate Recommendation"):
-
-        with st.spinner("Membuat rekomendasi..."):
-
-            if use_knn:
-                result = get_top_n_recommendations_knn(
-                    user_id=user_id,
-                    model=selected_model,
-                    df=df,
-                    n=10
-                )
-            else:
-                result = get_top_n_recommendations(
-                    user_id=user_id,
-                    model=selected_model,
-                    df=df,
-                    n=10
-                )
-
-        if result.empty:
-            st.warning(
-                "Tidak ada rekomendasi yang bisa dibuat untuk user ini dengan model KNN. "
-                "Pastikan user memiliki cukup histori interaksi."
-            )
-        else:
-            st.success(
-                f"Rekomendasi berhasil dibuat menggunakan model {model_choice}"
-            )
-
-            st.dataframe(
-                result,
-                use_container_width=True
-            )
-
-            csv = result.to_csv(
-                index=False
-            ).encode()
-
-            st.download_button(
-                label="📥 Download CSV",
-                data=csv,
-                file_name=f"recommendation_{model_choice.lower().replace(' ', '_')}.csv",
-                mime="text/csv"
-            )
-
-reader = Reader(rating_scale=(df["Rating"].min(), df["Rating"].max()))
- 
-data = Dataset.load_from_df(
-    df[["User_ID", "Clothing ID", "Rating"]],
-    reader
-)
- 
-trainset, testset = train_test_split(data, test_size=0.2, random_state=42)
- 
+# ==================== LOGIKA EVALUASI (DIBUNGKUS CACHE) ====================
 def evaluate_surprise_model(model, testset, threshold=3.5):
     predictions = model.test(testset)
- 
     rmse = accuracy.rmse(predictions, verbose=False)
     mae  = accuracy.mae(predictions,  verbose=False)
  
@@ -494,48 +279,19 @@ def evaluate_surprise_model(model, testset, threshold=3.5):
         "F1-Score":  round(f1,        4),
     }
 
- 
 def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state=42):
-    """
-    Evaluasi sklearn NearestNeighbors (user-based collaborative filtering).
-    - Buat user-item matrix
-    - Split user secara acak jadi train/test
-    - Untuk setiap test user, prediksi rating produk yang belum dilihat
-      berdasarkan weighted average rating dari K tetangga terdekat
-    - Hitung RMSE, MAE, Precision, Recall, F1
-    """
- 
-    print("  Membuat user-item matrix...")
- 
-    matrix = df.pivot_table(
-        index="User_ID",
-        columns="Clothing ID",
-        values="Rating",
-        aggfunc="mean"
-    ).fillna(0)
- 
+    matrix = df.pivot_table(index="User_ID", columns="Clothing ID", values="Rating", aggfunc="mean").fillna(0)
     if hasattr(knn_model, 'feature_names_in_'):
         matrix = matrix.reindex(columns=knn_model.feature_names_in_, fill_value=0)
 
     all_users = matrix.index.tolist()
- 
     np.random.seed(random_state)
-    test_users = np.random.choice(
-        all_users,
-        size=int(len(all_users) * test_size),
-        replace=False
-    )
+    test_users = np.random.choice(all_users, size=int(len(all_users) * test_size), replace=False)
  
     y_true_all = []
     y_pred_all = []
  
-    print(f"  Mengevaluasi {len(test_users)} test users...")
- 
-    for i, user_id in enumerate(test_users):
- 
-        if i % 50 == 0:
-            print(f"  Progress: {i}/{len(test_users)}")
- 
+    for user_id in test_users:
         user_idx = matrix.index.get_loc(user_id)
         user_vector = matrix.iloc[user_idx].values.reshape(1, -1)
  
@@ -551,16 +307,12 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
         product_scores = {}
  
         for neighbor_idx, distance in zip(neighbor_indices, neighbor_distances):
- 
             neighbor_user_id = matrix.index[neighbor_idx]
             if neighbor_user_id == user_id:
                 continue
  
             similarity = 1 / (1 + distance)
- 
-            neighbor_ratings = df[
-                df["User_ID"] == neighbor_user_id
-            ][["Clothing ID", "Rating"]]
+            neighbor_ratings = df[df["User_ID"] == neighbor_user_id][["Clothing ID", "Rating"]]
  
             for _, row in neighbor_ratings.iterrows():
                 product = row["Clothing ID"]
@@ -582,11 +334,7 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
                 y_pred_all.append(predicted)
  
     if not y_true_all:
-        print("  Tidak ada prediksi yang bisa dievaluasi!")
-        return {
-            "RMSE": None, "MAE": None,
-            "Precision": None, "Recall": None, "F1-Score": None
-        }
+        return {"RMSE": None, "MAE": None, "Precision": None, "Recall": None, "F1-Score": None}
  
     y_true_arr = np.array(y_true_all)
     y_pred_arr = np.array(y_pred_all)
@@ -601,34 +349,141 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
     recall    = round(recall_score(y_true_bin, y_pred_bin, zero_division=0), 4)
     f1        = round(f1_score(y_true_bin, y_pred_bin, zero_division=0), 4)
  
-    return {
-        "RMSE": rmse, "MAE": mae,
-        "Precision": precision, "Recall": recall, "F1-Score": f1
-    }
+    return {"RMSE": rmse, "MAE": mae, "Precision": precision, "Recall": recall, "F1-Score": f1}
 
- 
-print("\nMengevaluasi CF...")
-cf_metrics  = evaluate_surprise_model(cf_model,  testset)
- 
-print("Mengevaluasi SVD...")
-svd_metrics = evaluate_surprise_model(svd_model, testset)
- 
-print("Mengevaluasi KNN (sklearn)...")
-knn_metrics = evaluate_knn_model(knn_model, df)
+@st.cache_data
+def run_all_evaluations(_cf_model, _svd_model, _knn_model, _df):
+    # Setup Surprise Dataset split
+    reader = Reader(rating_scale=(_df["Rating"].min(), _df["Rating"].max()))
+    data = Dataset.load_from_df(_df[["User_ID", "Clothing ID", "Rating"]], reader)
+    _, testset = train_test_split(data, test_size=0.2, random_state=42)
+    
+    cf_metrics  = evaluate_surprise_model(_cf_model, testset)
+    svd_metrics = evaluate_surprise_model(_svd_model, testset)
+    knn_metrics = evaluate_knn_model(_knn_model, _df)
+    
+    result_df = pd.DataFrame([
+        {"Model": "CF",  **cf_metrics},
+        {"Model": "SVD", **svd_metrics},
+        {"Model": "KNN", **knn_metrics},
+    ])
+    return result_df
 
- 
-result_df = pd.DataFrame([
-    {"Model": "CF",  **cf_metrics},
-    {"Model": "SVD", **svd_metrics},
-    {"Model": "KNN", **knn_metrics},
-])
- 
-print("\n=== Hasil Evaluasi ===")
-print(result_df.to_string(index=False))
- 
-result_df.to_excel("hasil_evaluasi.xlsx", index=False)
-print("\nhasil_evaluasi.xlsx berhasil diperbarui!")
- 
+if menu == "Dashboard":
+
+    st.title("📊 Dashboard Admin")
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("Total User", df["User_ID"].nunique())
+    col2.metric("Total Produk", df["Clothing ID"].nunique())
+    col3.metric("Total Interaksi", len(df))
+
+    st.divider()
+
+    left, right = st.columns(2)
+
+    with left:
+        st.subheader("Distribusi Rating")
+        fig, ax = plt.subplots()
+        df["Rating"].value_counts().sort_index().plot(kind="bar", ax=ax)
+        plt.xlabel("Rating")
+        plt.ylabel("Jumlah")
+        st.pyplot(fig)
+
+    with right:
+        st.subheader("Top Kategori Produk")
+        fig2, ax2 = plt.subplots()
+        df["Class Name"].value_counts().head(10).plot(kind="bar", ax=ax2)
+        st.pyplot(fig2)
+
+elif menu == "Katalog Produk":
+
+    st.title("🛍️ Katalog Produk")
+
+    produk = df[["Clothing ID", "Class Name", "Department Name"]].drop_duplicates()
+    search = st.text_input("Cari Produk")
+
+    if search:
+        produk = produk[produk["Class Name"].astype(str).str.contains(search, case=False, na=False)]
+
+    st.dataframe(produk, use_container_width=True)
+
+
+elif menu == "Histori User":
+
+    st.title("👤 Histori User")
+
+    user_id = st.number_input("Masukkan User ID", min_value=1, value=1, step=1)
+    user_id = int(user_id)
+
+    history = df[df["User_ID"] == user_id]
+    st.write(f"Jumlah Interaksi: {len(history)}")
+
+    st.dataframe(history[["Clothing ID", "Class Name", "Rating"]], use_container_width=True)
+
+elif menu == "Rekomendasi Produk":
+
+    st.title("🎯 Sistem Rekomendasi Produk")
+
+    user_id = st.number_input("Masukkan User ID", min_value=1, value=1, step=1)
+    user_id = int(user_id)
+
+    model_choice = st.selectbox("Pilih Model", ["SVD", "Collaborative Filtering", "KNN"])
+
+    if model_choice == "SVD":
+        selected_model = svd_model
+        use_knn = False
+    elif model_choice == "KNN":
+        selected_model = knn_model
+        use_knn = True
+    else:
+        selected_model = cf_model
+        use_knn = False
+
+    if st.button("Generate Recommendation"):
+
+        with st.spinner("Membuat rekomendasi..."):
+            if use_knn:
+                result = get_top_n_recommendations_knn(user_id=user_id, model=selected_model, df=df, n=10)
+            else:
+                result = get_top_n_recommendations(user_id=user_id, model=selected_model, df=df, n=10)
+
+        if result.empty:
+            st.warning("Tidak ada rekomendasi yang bisa dibuat untuk user ini dengan model KNN. Pastikan user memiliki cukup histori interaksi.")
+        else:
+            st.success(f"Rekomendasi berhasil dibuat menggunakan model {model_choice}")
+            st.dataframe(result, use_container_width=True)
+
+            csv = result.to_csv(index=False).encode()
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"recommendation_{model_choice.lower().replace(' ', '_')}.csv",
+                mime="text/csv"
+            )
+
+elif menu == "Visualisasi Akurasi":
+
+    st.title("📉 Visualisasi & Perbandingan Akurasi Model")
+    st.markdown("Halaman ini membandingkan metrik evaluasi dari model CF, SVD, dan KNN secara langsung.")
+
+    with st.spinner("Menghitung metrik evaluasi model (proses ini menggunakan cache)..."):
+        # Menjalankan fungsi evaluasi terbungkus cache
+        res_df = run_all_evaluations(cf_model, svd_model, knn_model, df)
+    
+    st.success("Evaluasi Berhasil Dimuat!")
+
+    st.dataframe(res_df, use_container_width=True)
+  
+    excel_buffer = BytesIO()
+    res_df.to_excel(excel_buffer, index=False)
+    st.download_button(
+        label="📥 Download Hasil Evaluasi (Excel)",
+        data=excel_buffer.getvalue(),
+        file_name="hasil_evaluasi.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 st.sidebar.divider()
 
