@@ -258,7 +258,6 @@ def get_top_n_recommendations_knn(
         ["Clothing_ID", "Class Name", "Department Name", "Predicted_Rating"]
     ]
 
-# ==================== LOGIKA EVALUASI (DIBUNGKUS CACHE) ====================
 def evaluate_surprise_model(model, testset, threshold=3.5):
     predictions = model.test(testset)
     rmse = accuracy.rmse(predictions, verbose=False)
