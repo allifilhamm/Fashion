@@ -20,11 +20,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# @st.cache_data dihapus agar data selalu update langsung dari CSV terbaru
 def load_data():
     return pd.read_csv("fashion_dataset_final.csv")
 
-# Tetap pertahankan cache_resource untuk model ML supaya tidak boros RAM server saat pindah menu
 @st.cache_resource
 def load_models():
     cf = pickle.load(open("cf_model.pkl", "rb"))
@@ -146,7 +144,6 @@ def get_top_n_recommendations(
         ]
     ]
 
-# @st.cache_data dihapus agar matriks dibuat ulang sesuai dimensi data terbaru
 def build_user_item_matrix(df):
     """
     Buat user-item matrix dari dataframe.
