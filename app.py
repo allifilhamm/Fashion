@@ -1,3 +1,4 @@
+Python
 import streamlit as st
 import pandas as pd
 import pickle
@@ -13,7 +14,6 @@ from sklearn.metrics import (
     mean_squared_error, 
     mean_absolute_error
 )
-
 
 st.set_page_config(
     page_title="Fashion Recommendation System",
@@ -177,7 +177,9 @@ def get_top_n_recommendations_knn(
 
     matrix = build_user_item_matrix(df)
 
-    # Pastikan user_id ada di matrix
+    if hasattr(model, 'feature_names_in_'):
+        matrix = matrix.reindex(columns=model.feature_names_in_, fill_value=0)
+   
     if user_id not in matrix.index:
         return pd.DataFrame(
             columns=[
@@ -188,23 +190,19 @@ def get_top_n_recommendations_knn(
             ]
         )
 
-    # Ambil vektor user target
     user_idx = matrix.index.get_loc(user_id)
     user_vector = matrix.iloc[user_idx].values.reshape(1, -1)
 
-    # Cari tetangga terdekat (ambil 20 tetangga untuk hasil lebih baik)
     k = min(20, model.n_samples_fit_)
     distances, indices = model.kneighbors(user_vector, n_neighbors=k)
 
     neighbor_indices = indices[0]
     neighbor_distances = distances[0]
 
-    # Produk yang sudah dirating user_id
     rated_products = set(
         df[df["User_ID"] == user_id]["Clothing ID"].unique()
     )
 
-    # Hitung skor untuk setiap produk berdasarkan rating tetangga
     product_scores = {}
 
     for neighbor_idx, distance in zip(neighbor_indices, neighbor_distances):
@@ -230,7 +228,6 @@ def get_top_n_recommendations_knn(
             product_scores[product]["score"]  += similarity * rating
             product_scores[product]["weight"] += similarity
 
-    # Hitung weighted average rating
     predictions = []
 
     for product, val in product_scores.items():
@@ -518,6 +515,9 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
         aggfunc="mean"
     ).fillna(0)
  
+    if hasattr(knn_model, 'feature_names_in_'):
+        matrix = matrix.reindex(columns=knn_model.feature_names_in_, fill_value=0)
+
     all_users = matrix.index.tolist()
  
     np.random.seed(random_state)
@@ -545,14 +545,10 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
  
         neighbor_indices = indices[0]
         neighbor_distances = distances[0]
- 
-        # Produk yang sudah dirating user (ground truth)
         user_ratings = df[df["User_ID"] == user_id][["Clothing ID", "Rating"]]
  
         if user_ratings.empty:
             continue
- 
-        # Hitung prediksi rating dari tetangga
         product_scores = {}
  
         for neighbor_idx, distance in zip(neighbor_indices, neighbor_distances):
@@ -577,7 +573,6 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
                 product_scores[product]["score"]  += similarity * rating
                 product_scores[product]["weight"] += similarity
  
-        # Bandingkan prediksi vs aktual
         for _, row in user_ratings.iterrows():
             product = row["Clothing ID"]
             actual  = row["Rating"]
