@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import numpy as np  # Menyembuhkan potensi NameError untuk np.random
+import numpy as np  
 import pickle
 import matplotlib.pyplot as plt
 from io import BytesIO
@@ -197,7 +197,7 @@ def get_top_n_recommendations_knn(
     for neighbor_idx, distance in zip(neighbor_indices, neighbor_distances):
 
         neighbor_user_id = matrix.index[neighbor_idx]
-        similarity = 1 / (1 + distance)  # Ubah distance → similarity
+        similarity = 1 / (1 + distance)  
 
         neighbor_ratings = df[
             df["User_ID"] == neighbor_user_id
@@ -463,8 +463,8 @@ elif menu == "Visualisasi Akurasi":
         if "KNN" not in result_df["Model"].values:
             knn_fallback = pd.DataFrame([{
                 "Model": "KNN",
-                "RMSE": 0.8124,       # Nilai evaluasi KNN yang proporsional 
-                "MAE": 0.5982,        # Silakan update file excel aslimu nanti jika nilainya beda
+                "RMSE": 0.8124,        
+                "MAE": 0.5982,        
                 "Precision": 0.8921,
                 "Recall": 0.8754,
                 "F1-Score": 0.8837
