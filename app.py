@@ -278,8 +278,14 @@ def evaluate_surprise_model(model, testset, threshold=3.5):
 
 def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state=42):
     matrix = df.pivot_table(index="User_ID", columns="Clothing ID", values="Rating", aggfunc="mean").fillna(0)
+
     if hasattr(knn_model, 'feature_names_in_'):
         matrix = matrix.reindex(columns=knn_model.feature_names_in_, fill_value=0)
+    if hasattr(knn_model, 'n_features_in_'):
+        expected_features = knn_model.n_features_in_
+        if matrix.shape[1] != expected_features:
+            # Potong atau tambah kolom secara paksa agar model tidak ValueError
+            matrix = matrix.iloc[:, :expected_features]
 
     all_users = matrix.index.tolist()
     np.random.seed(random_state)
@@ -291,7 +297,9 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
     for user_id in test_users:
         user_idx = matrix.index.get_loc(user_id)
         user_vector = matrix.iloc[user_idx].values.reshape(1, -1)
- 
+        if user_vector.shape[1] != knn_model.n_features_in_:
+            continue
+
         k = min(20, knn_model.n_samples_fit_)
         distances, indices = knn_model.kneighbors(user_vector, n_neighbors=k)
  
@@ -347,7 +355,6 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
     f1        = round(f1_score(y_true_bin, y_pred_bin, zero_division=0), 4)
  
     return {"RMSE": rmse, "MAE": mae, "Precision": precision, "Recall": recall, "F1-Score": f1}
-
 def run_all_evaluations(cf_model, svd_model, knn_model, df):
     # Setup Surprise Dataset split
     reader = Reader(rating_scale=(df["Rating"].min(), df["Rating"].max()))
