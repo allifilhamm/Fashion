@@ -4,19 +4,12 @@ import pickle
 import matplotlib.pyplot as plt
 from io import BytesIO
 
-# ==================================
-# PAGE CONFIG
-# ==================================
-
 st.set_page_config(
     page_title="Fashion Recommendation System",
     page_icon="👗",
     layout="wide"
 )
 
-# ==================================
-# LOAD DATA
-# ==================================
 
 @st.cache_data
 def load_data():
@@ -26,14 +19,12 @@ def load_data():
 def load_models():
     cf = pickle.load(open("cf_model.pkl", "rb"))
     svd = pickle.load(open("svd_model.pkl", "rb"))
-    return cf, svd
+    knn = pickle.load(open("knn_model.pkl", "rb"))
+    return cf, svd, knn
 
 df = load_data()
-cf_model, svd_model = load_models()
+cf_model, svd_model, knn_model = load_models()
 
-# ==================================
-# LOGIN
-# ==================================
 
 if "login" not in st.session_state:
     st.session_state.login = False
@@ -57,9 +48,6 @@ if not st.session_state.login:
 
     st.stop()
 
-# ==================================
-# SIDEBAR
-# ==================================
 
 st.sidebar.title("Fashion Recommendation")
 
@@ -74,9 +62,6 @@ menu = st.sidebar.radio(
     ]
 )
 
-# ==================================
-# RECOMMENDATION FUNCTION
-# ==================================
 
 def get_top_n_recommendations(
     user_id,
@@ -152,9 +137,98 @@ def get_top_n_recommendations(
         ]
     ]
 
-# ==================================
-# DASHBOARD
-# ==================================
+
+def get_top_n_recommendations_knn(
+    user_id,
+    model,
+    df,
+    n=10
+):
+    """
+    KNN dari Surprise (KNNBasic / KNNWithMeans / KNNWithZScore / KNNBaseline)
+    menggunakan model.predict() dengan interface yang sama seperti SVD,
+    sehingga cukup panggil fungsi ini dengan cara yang sama.
+    """
+
+    all_products = df["Clothing ID"].unique()
+
+    rated_products = df[
+        df["User_ID"] == user_id
+    ]["Clothing ID"].unique()
+
+    unseen_products = [
+        product
+        for product in all_products
+        if product not in rated_products
+    ]
+
+    predictions = []
+
+    for product in unseen_products:
+
+        try:
+            pred = model.predict(
+                uid=user_id,
+                iid=product
+            )
+            predictions.append(
+                (
+                    product,
+                    pred.est
+                )
+            )
+        except Exception:
+            # Lewati produk yang tidak bisa diprediksi
+            continue
+
+    predictions.sort(
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    top_n = predictions[:n]
+
+    if not top_n:
+        return pd.DataFrame(
+            columns=[
+                "Clothing_ID",
+                "Class Name",
+                "Department Name",
+                "Predicted_Rating"
+            ]
+        )
+
+    recommendation_df = pd.DataFrame(
+        top_n,
+        columns=[
+            "Clothing_ID",
+            "Predicted_Rating"
+        ]
+    )
+
+    product_info = df[
+        [
+            "Clothing ID",
+            "Class Name",
+            "Department Name"
+        ]
+    ].drop_duplicates()
+
+    result = recommendation_df.merge(
+        product_info,
+        left_on="Clothing_ID",
+        right_on="Clothing ID",
+        how="left"
+    )
+
+    return result[
+        [
+            "Clothing_ID",
+            "Class Name",
+            "Department Name",
+            "Predicted_Rating"
+        ]
+    ]
 
 if menu == "Dashboard":
 
@@ -210,10 +284,6 @@ if menu == "Dashboard":
 
         st.pyplot(fig2)
 
-# ==================================
-# KATALOG
-# ==================================
-
 elif menu == "Katalog Produk":
 
     st.title("🛍️ Katalog Produk")
@@ -247,10 +317,6 @@ elif menu == "Katalog Produk":
         use_container_width=True
     )
 
-# ==================================
-# HISTORI USER
-# ==================================
-
 elif menu == "Histori User":
 
     st.title("👤 Histori User")
@@ -283,9 +349,6 @@ elif menu == "Histori User":
         use_container_width=True
     )
 
-# ==================================
-# RECOMMENDATION
-# ==================================
 
 elif menu == "Rekomendasi Produk":
 
@@ -304,47 +367,65 @@ elif menu == "Rekomendasi Produk":
         "Pilih Model",
         [
             "SVD",
-            "Collaborative Filtering"
+            "Collaborative Filtering",
+            "KNN"
         ]
     )
 
     if model_choice == "SVD":
         selected_model = svd_model
+        use_knn = False
+    elif model_choice == "KNN":
+        selected_model = knn_model
+        use_knn = True
     else:
         selected_model = cf_model
+        use_knn = False
 
     if st.button("Generate Recommendation"):
 
-        result = get_top_n_recommendations(
-            user_id=user_id,
-            model=selected_model,
-            df=df,
-            n=10
-        )
+        with st.spinner("Membuat rekomendasi..."):
 
-        st.success(
-            "Rekomendasi berhasil dibuat"
-        )
+            if use_knn:
+                result = get_top_n_recommendations_knn(
+                    user_id=user_id,
+                    model=selected_model,
+                    df=df,
+                    n=10
+                )
+            else:
+                result = get_top_n_recommendations(
+                    user_id=user_id,
+                    model=selected_model,
+                    df=df,
+                    n=10
+                )
 
-        st.dataframe(
-            result,
-            use_container_width=True
-        )
+        if result.empty:
+            st.warning(
+                "Tidak ada rekomendasi yang bisa dibuat untuk user ini dengan model KNN. "
+                "Pastikan user memiliki cukup histori interaksi."
+            )
+        else:
+            st.success(
+                f"Rekomendasi berhasil dibuat menggunakan model {model_choice}"
+            )
 
-        csv = result.to_csv(
-            index=False
-        ).encode()
+            st.dataframe(
+                result,
+                use_container_width=True
+            )
 
-        st.download_button(
-            label="📥 Download CSV",
-            data=csv,
-            file_name="recommendation.csv",
-            mime="text/csv"
-        )
+            csv = result.to_csv(
+                index=False
+            ).encode()
 
-# ==================================
-# EVALUATION
-# ==================================
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"recommendation_{model_choice.lower().replace(' ', '_')}.csv",
+                mime="text/csv"
+            )
 
 elif menu == "Visualisasi Akurasi":
 
@@ -399,20 +480,16 @@ elif menu == "Visualisasi Akurasi":
             "hasil_evaluasi.xlsx belum ditemukan"
         )
 
-# ==================================
-# FOOTER
-# ==================================
-
 st.sidebar.divider()
 
 st.sidebar.info(
     """
     Fashion Recommendation System
-    
+
     Collaborative Filtering
     KNN
     SVD
-    
+
     CRISP-DM Methodology
     """
 )
