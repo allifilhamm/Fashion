@@ -20,10 +20,11 @@ st.set_page_config(
     layout="wide"
 )
 
-@st.cache_data
+# @st.cache_data dihapus agar data selalu update langsung dari CSV terbaru
 def load_data():
     return pd.read_csv("fashion_dataset_final.csv")
 
+# Tetap pertahankan cache_resource untuk model ML supaya tidak boros RAM server saat pindah menu
 @st.cache_resource
 def load_models():
     cf = pickle.load(open("cf_model.pkl", "rb"))
@@ -145,13 +146,13 @@ def get_top_n_recommendations(
         ]
     ]
 
-@st.cache_data
-def build_user_item_matrix(_df):
+# @st.cache_data dihapus agar matriks dibuat ulang sesuai dimensi data terbaru
+def build_user_item_matrix(df):
     """
     Buat user-item matrix dari dataframe.
     Baris = user, kolom = produk.
     """
-    matrix = _df.pivot_table(
+    matrix = df.pivot_table(
         index="User_ID",
         columns="Clothing ID",
         values="Rating",
@@ -271,7 +272,7 @@ def evaluate_surprise_model(model, testset, threshold=3.5):
     f1        = f1_score(y_true, y_pred, zero_division=0)
  
     return {
-        "RMSE":      round(rmse,      4),
+        "RMSE":      round(rmse,    4),
         "MAE":       round(mae,       4),
         "Precision": round(precision, 4),
         "Recall":    round(recall,    4),
@@ -350,16 +351,15 @@ def evaluate_knn_model(knn_model, df, threshold=3.5, test_size=0.2, random_state
  
     return {"RMSE": rmse, "MAE": mae, "Precision": precision, "Recall": recall, "F1-Score": f1}
 
-@st.cache_data
-def run_all_evaluations(_cf_model, _svd_model, _knn_model, _df):
+def run_all_evaluations(cf_model, svd_model, knn_model, df):
     # Setup Surprise Dataset split
-    reader = Reader(rating_scale=(_df["Rating"].min(), _df["Rating"].max()))
-    data = Dataset.load_from_df(_df[["User_ID", "Clothing ID", "Rating"]], reader)
+    reader = Reader(rating_scale=(df["Rating"].min(), df["Rating"].max()))
+    data = Dataset.load_from_df(df[["User_ID", "Clothing ID", "Rating"]], reader)
     _, testset = train_test_split(data, test_size=0.2, random_state=42)
     
-    cf_metrics  = evaluate_surprise_model(_cf_model, testset)
-    svd_metrics = evaluate_surprise_model(_svd_model, testset)
-    knn_metrics = evaluate_knn_model(_knn_model, _df)
+    cf_metrics  = evaluate_surprise_model(cf_model, testset)
+    svd_metrics = evaluate_surprise_model(svd_model, testset)
+    knn_metrics = evaluate_knn_model(knn_model, df)
     
     result_df = pd.DataFrame([
         {"Model": "CF",  **cf_metrics},
@@ -467,14 +467,13 @@ elif menu == "Visualisasi Akurasi":
     st.title("📉 Visualisasi & Perbandingan Akurasi Model")
     st.markdown("Halaman ini membandingkan metrik evaluasi dari model CF, SVD, dan KNN secara langsung.")
 
-    with st.spinner("Menghitung metrik evaluasi model (proses ini menggunakan cache)..."):
-        # Menjalankan fungsi evaluasi terbungkus cache
+    with st.spinner("Menghitung metrik evaluasi model (proses dihitung real-time)..."):
         res_df = run_all_evaluations(cf_model, svd_model, knn_model, df)
     
     st.success("Evaluasi Berhasil Dimuat!")
-
+    
     st.dataframe(res_df, use_container_width=True)
-  
+    
     excel_buffer = BytesIO()
     res_df.to_excel(excel_buffer, index=False)
     st.download_button(
