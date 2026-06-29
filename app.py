@@ -694,8 +694,8 @@ elif menu == "Pengujian Black Box":
 
     st.divider()
 
-    # Tabel dengan warna status
-    def color_status(val):
+# Tabel dengan warna status
+def color_status(val):
     if val == "PASS":
         return "background-color: #d4edda; color: #155724; font-weight: bold"
     return "background-color: #f8d7da; color: #721c24; font-weight: bold"
