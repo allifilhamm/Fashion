@@ -696,14 +696,37 @@ elif menu == "Pengujian Black Box":
 
     # Tabel dengan warna status
     def color_status(val):
-        if val == "PASS":
-            return "background-color: #d4edda; color: #155724; font-weight: bold"
-        return "background-color: #f8d7da; color: #721c24; font-weight: bold"
+    if val == "PASS":
+        return "background-color: #d4edda; color: #155724; font-weight: bold"
+    return "background-color: #f8d7da; color: #721c24; font-weight: bold"
 
 styled = test_df.style.map(color_status, subset=["Status"])
 
 st.dataframe(styled, use_container_width=True, height=560)
 
+# Detail per modul
+st.markdown(
+    '<div class="section-header">📂 Ringkasan per Modul</div>',
+    unsafe_allow_html=True
+)
+
+module_summary = (
+    test_df.groupby("Modul")["Status"]
+    .apply(lambda x: f"✅ {(x=='PASS').sum()} PASS / ❌ {(x=='FAIL').sum()} FAIL")
+    .reset_index()
+)
+
+module_summary.columns = ["Modul", "Hasil"]
+
+st.dataframe(module_summary, use_container_width=True)
+
+st.info("""
+**Metodologi Pengujian Black Box:**
+- Teknik yang digunakan: **Equivalence Partitioning** dan **Boundary Value Analysis**
+- Penguji tidak melihat implementasi kode internal
+- Setiap test case diverifikasi melalui antarmuka aplikasi
+- Kriteria kelulusan: output aktual sesuai output yang diharapkan
+""")
     # Detail per modul
     st.markdown('<div class="section-header">📂 Ringkasan per Modul</div>',
                 unsafe_allow_html=True)
