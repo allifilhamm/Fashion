@@ -290,20 +290,15 @@ elif menu == "Rekomendasi Produk":
  
 
 elif menu == "Kriteria Rekomendasi":
-    st.title("📋 Kriteria Sistem Rekomendasi")
- 
-    st.markdown("""
-    Halaman ini menjelaskan kriteria dan aturan bisnis yang digunakan sistem
-    untuk menghasilkan rekomendasi produk fashion yang relevan dan berkualitas.
-    """)
+    st.title("📋 Kriteria Rekomendasi")
  
     st.markdown('<div class="section-header">👤 Kriteria Berbasis User</div>',
                 unsafe_allow_html=True)
  
     criterias_user = [
         ("Minimum Histori Interaksi",
-         "User harus memiliki minimal 1 interaksi (rating) di dalam sistem agar model dapat membuat prediksi. "
-         "User baru tanpa histori akan mendapat rekomendasi berdasarkan produk terpopuler (cold-start fallback)."),
+         "User harus memiliki minimal 1 interaksi di dalam sistem agar model dapat membuat prediksi. "
+         "User baru tanpa histori akan mendapat rekomendasi berdasarkan produk terpopuler."),
         ("Validitas User ID",
          "User ID harus terdaftar dalam dataset. Input ID yang tidak dikenali akan menampilkan peringatan "
          "dan tidak akan menjalankan proses prediksi."),
