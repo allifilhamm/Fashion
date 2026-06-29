@@ -102,7 +102,6 @@ menu = st.sidebar.radio(
         "Kriteria Rekomendasi",
         "Feature Selection",
         "Pengujian Black Box",
-        "Visualisasi Akurasi",
     ]
 )
 
