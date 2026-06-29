@@ -700,8 +700,9 @@ elif menu == "Pengujian Black Box":
             return "background-color: #d4edda; color: #155724; font-weight: bold"
         return "background-color: #f8d7da; color: #721c24; font-weight: bold"
 
-    styled = test_df.style.applymap(color_status, subset=["Status"])
-    st.dataframe(styled, use_container_width=True, height=560)
+styled = test_df.style.map(color_status, subset=["Status"])
+
+st.dataframe(styled, use_container_width=True, height=560)
 
     # Detail per modul
     st.markdown('<div class="section-header">📂 Ringkasan per Modul</div>',
